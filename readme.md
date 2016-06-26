@@ -9,3 +9,8 @@ git remote add origin https://github.com/cloudwiki/weibo.git
 git push -u origin master
 
 
+
+------------------------------------------
+python command
+C:\Users\xx\Programs\Python35\python35 -m pip install aiomysql
+C:\Users\xx\Programs\Python35\python35 -m pip install --upgrade aiomysql
