@@ -10,6 +10,7 @@ import aiomysql
 def log(sql, args=()):
     logging.info('SQL: %s' % sql)
 
+
 @asyncio.coroutine
 def create_pool(loop, **kw):
     logging.info('create database connection pool')
@@ -47,7 +48,7 @@ def select(sql, args, size=None):
 @asyncio.coroutine
 def execute(sql, args):
     log(sql)
-    #global __pool
+    # global __pool
     with(yield from __pool) as conn:
         try:
             cur = yield from conn.cursor()
@@ -67,10 +68,9 @@ def create_args_string(num):
 
 
 class ModelMetaclass(type):
-
     def __new__(cls, name, bases, attrs):
         # ignore Model itself
-        if name=='Model':
+        if name == 'Model':
             return type.__new__(cls, name, bases, attrs)
         # get table name
         tableName = attrs.get('__table__', None) or name
@@ -108,6 +108,7 @@ class ModelMetaclass(type):
         attrs['__delete__'] = 'delete from `%s` where `%s` = ?' % (tableName, primaryKey)
         return type.__new__(cls, name, bases, attrs)
 
+
 class Model(dict, metaclass=ModelMetaclass):
     def __init__(self, **kw):
         super(Model, self).__init__(
@@ -139,10 +140,38 @@ class Model(dict, metaclass=ModelMetaclass):
     @asyncio.coroutine
     def find(cls, pk):
         ' find object by primary key'
-        rs = select('%s where `%s` = ? ' % (cls.__select__, cls.__primary_key__), [pk], 1)
+        rs = yield from select('%s where `%s` = ? ' % (cls.__select__, cls.__primary_key__), [pk], 1)
         if len(rs) == 0:
             return None
         return cls(**rs[0])
+
+    @classmethod
+    @asyncio.coroutine
+    def findAll(cls, where=None, args=None, **kw):
+        ' find objects by where clause. '
+        sql = [cls.__select__]
+        if where:
+            sql.append('where')
+            sql.append(where)
+        if args is None:
+            args = []
+        orderBy = kw.get('orderBy', None)
+        if orderBy:
+            sql.append('order by')
+            sql.append(orderBy)
+        limit = kw.get('limit', None)
+        if limit is not None:
+            sql.append('limit')
+            if isinstance(limit, int):
+                sql.append('?')
+                args.append(limit)
+            elif isinstance(limit, tuple) and len(limit) == 2:
+                sql.append('?, ?')
+                args.extend(limit)
+            else:
+                raise ValueError('Invalid limit value: %s' % str(limit))
+        rs = yield from select(' '.join(sql), args)
+        return [cls(**r) for r in rs]
 
     @asyncio.coroutine
     def save(self):
@@ -189,17 +218,17 @@ class TextField(Field):
         super().__init__(name, 'text', False, default)
 
 
-# class User(Model):
-#     __table__ = 'users'
-#     id = IntegerField(primary_key=True)
-#     name = StringField()
-#
-# @asyncio.coroutine
-# def testSave():
-#     user = User(id=1, name='test')
-#     row = yield from user.save()
-#     print(row)
-# global loop
-# loop = asyncio.get_event_loop()
-# loop.run_until_complete(testSave())
-#todo globa var issue
+        # class User(Model):
+        #     __table__ = 'users'
+        #     id = IntegerField(primary_key=True)
+        #     name = StringField()
+        #
+        # @asyncio.coroutine
+        # def testSave():
+        #     user = User(id=1, name='test')
+        #     row = yield from user.save()
+        #     print(row)
+        # global loop
+        # loop = asyncio.get_event_loop()
+        # loop.run_until_complete(testSave())
+        # todo globa var issue

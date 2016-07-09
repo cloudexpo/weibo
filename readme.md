@@ -9,6 +9,8 @@ git remote add origin https://github.com/cloudwiki/weibo.git
 git push -u origin master
 
 
+#check any diff between local and index etc
+git status
 
 ------------------------------------------
 python command
